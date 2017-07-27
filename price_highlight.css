@@ -1,0 +1,40 @@
+.hover-box{
+    display: none;
+    position: absolute;
+    min-width: 250px;
+    min-height: 100px;
+    border-color: black;
+    border-width: 2px;
+    border-style: solid;
+    z-index: 100;
+    background-color: antiquewhite;
+    
+    font: Verdana, Geneva, sans-serif;
+    font-size: 15pt;
+    
+    
+}
+
+.hover-text{
+    position: relative;
+    display: inline-block;
+    border-color: black;
+    border-width: 1px;
+    border-style: dashed;
+}
+
+
+
+.hover-info{
+    
+}
+
+
+.crypto-suggestion{
+    background-color: white;
+    
+}
+
+.crypto-suggestion:hover {
+    background-color: lightgrey;
+}
