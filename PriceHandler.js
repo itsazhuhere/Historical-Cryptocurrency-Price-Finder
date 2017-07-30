@@ -81,36 +81,17 @@ function onDataFetched(responseText, target){
 */
 
 function priceQuery(currency, time){
-    
     return new Promise(function(resolve, reject){
-        //TODO: determine if necessary to store 
-        var apiBase = "https://graphs.coinmarketcap.com/currencies/",
-        timeIncrement = 7200000; //looks back for about two hours before the given date, and takes the latest time.  CMC's graph backend appears to be about an hour behind the current time.
-    
-        //will always find the nearest price on or before the given time
-        var timeEnd = time;
-        var timeStart = timeEnd - timeIncrement;
-        var url = apiBase + currency + "/" + timeStart + "/" + timeEnd;
-        
-        var rawFile = new XMLHttpRequest();
-        rawFile.open("GET", url);
-        rawFile.onload = function() {
-            if (rawFile.status == 200) {
-                resolve(rawFile.response);
+        chrome.runtime.sendMessage({"currency": currency, "time": time}, function(result){
+            if(result.substr(0,6) != "Error:"){
+                console.log(result);
+                resolve(result);
             }
             else{
-                reject(Error(rawFile.statusText));
+                reject(result);
             }
-        }
-        
-        rawFile.onerror = function(){
-            reject(Error("Network Error"));
-        }
-        rawFile.send(null);
-    });
-    
-    console.log(url);
-    retrieveData(url, target, handleQueryResponse);
+        });
+    }); 
 }
 
 
@@ -465,6 +446,7 @@ function validateTable(event){
     
     pricePromise.then(JSON.parse, function(error){
         //TODO: implement error response
+        console.log(error);
     })
     .then(function(response){
         var section = "price_usd";
