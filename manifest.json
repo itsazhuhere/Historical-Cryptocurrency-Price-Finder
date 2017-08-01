@@ -20,6 +20,10 @@
 	
 	"externally_connectable": {
 		"ids": ["*"]
-	}
+	},
+	
+	"web_accessible_resources": [
+		"close.png"
+	]
 	
 }

@@ -232,7 +232,7 @@ function determineDate(selection){
 
 function setDate(infoBox, date){
     // infoBox -> third tr -> second td -> first child
-    var dateEntry = infoBox.childNodes[1].childNodes[1].childNodes[0];
+    var dateEntry = infoBox.childNodes[DATE].childNodes[1].childNodes[0];
     
     dateEntry.innerHTML = date;
     
@@ -253,6 +253,7 @@ function validateDate(event){
     }
 }
 
+var imageLink = chrome.extension.getURL("close.png");
 
 function initInfoBox(selection){
         
@@ -272,6 +273,25 @@ function initInfoBox(selection){
     var infoTable = document.createElement("table");
     infoTable.addEventListener("validinput", validateTable, false);
     
+    var closeButtonRow = document.createElement("tr");
+    var closeButtonCell = document.createElement("td");
+    var closeButton = document.createElement("a");
+    
+    var closeImage = document.createElement("img");
+    closeImage.setAttribute("src", imageLink);
+    closeImage.setAttribute("alt", "X");
+    closeImage.setAttribute("class", "close-button");
+    
+    closeButton.appendChild(closeImage);
+    $(closeButton).click(function(event){
+        //the span element that contains the close box event is 5 levels up; checking for span just to   be sure.
+        $(this).parent().parent().parent().parent().parent("span").trigger("close-hover");
+    });
+    
+    closeButtonCell.appendChild(closeButton);
+    closeButtonRow.appendChild(closeButtonCell);
+    
+    
     var nameRow = createRow(nameTitle, nameDefault, "input", "false"),
         //symbolRow = createRow(symbolTitle, symbolDefault, "false", validateSymbol),
         //currPriceRow = createRow(currPriceTitle, currPriceDefault),
@@ -289,6 +309,7 @@ function initInfoBox(selection){
     dateField.addEventListener("blur", validateDate, false);
     dateField.setAttribute("contenteditable", "true");
     
+    infoTable.appendChild(closeButtonRow);
     infoTable.appendChild(nameRow);
     //infoTable.appendChild(symbolRow);
     //infoTable.appendChild(currPriceRow);
@@ -309,6 +330,10 @@ function initInfoBox(selection){
         $(this).find(".hover-box").delay(500).fadeOut(1500);
     }
     );
+    
+    $(surroundNode).on("close-hover", function(event){
+        $(this).find(".hover-box").hide(0);
+    })
     
     addTA(nameFieldId);
     
@@ -406,9 +431,10 @@ function triggerStateChange(cell){
     parent.dispatchEvent(event);
 }
 
-var NAME = 0,
-    DATE = 1,
-    PRICE = 2;
+var NAME = 1,
+    DATE = 2,
+    PRICE = 3,
+    CLOSE = 0;
 
 function validateTable(event){
     var table = event.target,
@@ -417,6 +443,9 @@ function validateTable(event){
     
     var dateCell = null, priceCell = null;
     for(var i = 0; i < rows.length; i++){
+        if(i == CLOSE){
+            continue;
+        }
         //relevant cell will be second one
         var cell = rows[i].childNodes[1].childNodes[0];
         if( cell.getAttribute("isvalid") != "true"){
