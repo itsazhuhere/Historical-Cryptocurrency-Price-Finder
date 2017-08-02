@@ -23,7 +23,8 @@
 	},
 	
 	"web_accessible_resources": [
-		"close.png"
+		"close.png",
+		"hoverbox.html"
 	]
 	
 }

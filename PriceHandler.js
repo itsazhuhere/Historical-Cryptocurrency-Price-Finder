@@ -19,66 +19,77 @@ var boxCount = 0;
 var maxResults = 6;
 var resultHeight = 0;
 
-//var event = new CustomEvent("changesuccess", )
-//move this to local storage instead of loading it on every page
+var htmlLoaded = false;
+var htmlFile = chrome.extension.getURL("hoverbox.html");
+var infoBoxTemplate = null;
 
-/*
-function reloadData(){
-    var apiUrl = "https://files.coinmarketcap.com/generated/search/quick_search.json";
-    retrieveData(apiUrl, null, onDataFetched);
-}
+//add event listener first
 
+//then begin loading
+loadHTMLTemplate(htmlFile);
 
-function TwoWayMap(map){
-   this.map = map;
-   this.reverseMap = {};
-   for(var key in map){
-      var value = map[key];
-      this.reverseMap[value] = key;   
-   }
-}
-TwoWayMap.prototype.get = function(key){ 
-    return this.map[key]; 
-};
-TwoWayMap.prototype.revGet = function(key){ 
-    return this.reverseMap[key];
-};
-TwoWayMap.prototype.add = function(key, value){
-    this.map[key] = value;
-    this.reverseMap[value] = key;
-};
-
-function Crypto(name, symbol, slug){
-    this.name = name;
-    this.symbol = symbol;
-    this.slug = slug;
-}
-
-var nameSet = new TwoWayMap({});
-//reloadData();
-
-
-                 
-function onDataFetched(responseText, target){
-    //#########TODO: modify to work with https://files.coinmarketcap.com/generated/search/quick_search.json data
-    //responseText should be a list of dictionaries with coin data contained within them
-    var symbolsList = JSON.parse(responseText);
-    if(symbolsList.error){
-        console.log("CMC API error");
-        return;
-    }
-    
-    for(var i = 0; i< symbolsList.length; i++){
-        var name = symbolsList[i]["name"].toLowerCase();
-        var symbol = symbolsList[i]["symbol"].toLowerCase();
-        var slug = "";
+function loadHTMLTemplate(filepath){
+    var htmlPromise = new Promise(function(resolve, reject){
+        var request = new XMLHttpRequest();
+        request.open("GET", filepath);
+        request.onload = function(){
+            if(request.status == 200){
+                resolve(request.responseText);
+            }
+            else{
+                reject("Invalid document");
+            }
+        }
+        request.onerror = function(){
+            reject("Error: Network Error");
+        }
+        request.send(null);
         
-        var crypto = new Crypto(name, symbol, slug);
-        nameSet.add(name, symbol);
+    });
+    
+    htmlPromise.then(function(result){
+        infoBoxTemplate = $.parseHTML(result)[1];
+        htmlLoaded = true;
+    }, function(error){
+        //TODO: other error responses
+        console.log(error);
+    });
+}
+
+class InfoBox{
+    constructor(parentSpan, date){
+        this.hoverParent = parentSpan;
+        this.date = date;
+        
+        this.infoBoxHtml = null;
+        
+        this.initHTML();
+        
     }
     
+    initHTML(){
+        this.infoBoxHtml = $(infoBoxTemplate).clone();
+        
+        this.nameNode = $(this.infoBoxHtml).find("table").find("#name-row").find("td").find("input");
+        addTA(this.nameNode);
+        
+        
+        this.dateNode = $(this.infoBoxHtml).find("table").find("#date-row").find("td").find("span");
+        setDate(this.date);
+        
+        this.priceNode = $(this.infoBoxHtml).find("table").find("#price-row").find("td").find("span");
+        
+        
+        $(this.hoverParent).append($(this.infoBoxHtml));
+        
+    }
+    
+    setDate(newDate){
+        $(this.dateNode).html(newDate);
+    }
+    
+    
 }
-*/
 
 function priceQuery(currency, time){
     return new Promise(function(resolve, reject){
@@ -94,52 +105,10 @@ function priceQuery(currency, time){
     }); 
 }
 
-
-function retrieveData(url, target, callback) {
-    
-    
-    var rawFile = new XMLHttpRequest();
-    rawFile.onreadystatechange = function() {
-        if (rawFile.readyState == 4) {
-            callback(rawFile.responseText, target);
-        }
-    }
-    rawFile.open("GET", url, false);
-    rawFile.send(null);
-}
-
-
-function handleQueryResponse(responseText, target){
-    /*response in this context will be a string rep of a json object with
-    three keys, each containing a list of data pairs, 
-    
-    [{time since epoch in milliseconds}, {whatever data}]
-    
-    */
-    
-    var section = "price_usd",
-        responseJSON = JSON.parse(responseText);
-    var dataPairs = responseJSON[section];
-    var pairsLength = dataPairs.length;
-    var lastPair = dataPairs[pairsLength - 1];
-    
-    var dateString = toDate(lastPair[0]);
-    var price = "$" + lastPair[1];
-    
-    var event = new Event("retrieved");
-    event.detail = {"date":dateString, "price": price};
-    
-    target.dispatchEvent(event);
-    //$("body").trigger(event);
-    
-}
-
 function toDate(milliseconds){
     var date = new Date(milliseconds);
     return date.toLocaleString();
 }
-
-
 
 function toMilliseconds(date){
     var ms = new Date(date);
@@ -157,11 +126,6 @@ function checkHighlighted(event){
     if (window.getSelection) {
         selection = window.getSelection();
     } 
-    /*
-    else if (document.selection && document.selection.type != "Control") {
-        text = document.selection.createRange().text;
-    }
-    */
     
     if(!selection){
         //clear the old selection
@@ -170,24 +134,12 @@ function checkHighlighted(event){
         }
         return;
     }
-    /*
-    var amount = determineAmount(selection.toString())
-    
-    if(amount != ""){
-        var currentBox = initInfoBox(selection);
-        var currency = determineCurrency(selection);
-        var date = determineDate(selection);
-        
-        
-        
-    }
-    */
     
     var date = determineDate(selection.toString());
     
     if(date != ""){
-        var infoBox = initInfoBox(selection);
-        setDate(infoBox, date);
+        var infoBox = initInfoBox(selection, date);
+        //setDate(infoBox, date);
     }
     
     selection.empty();
@@ -255,7 +207,7 @@ function validateDate(event){
 
 var imageLink = chrome.extension.getURL("close.png");
 
-function initInfoBox(selection){
+function initInfoBox(selection, date){
         
     currentSelection = selection;
     var range = currentSelection.getRangeAt(0);
@@ -268,6 +220,10 @@ function initInfoBox(selection){
     //create info box html content
     var hoverBox = document.createElement("div");
     hoverBox.setAttribute("class", "hover-box");
+    
+    var newInfoBox = new InfoBox(surroundNode, date);
+    
+    /*
     
     //all info will be contained within a table for formatting
     var infoTable = document.createElement("table");
@@ -319,6 +275,7 @@ function initInfoBox(selection){
     hoverBox.appendChild(infoTable);
     
     surroundNode.appendChild(hoverBox);
+    */
     $(surroundNode).hover(function(e){
         
         $(this).find(".hover-box").stop(true, true).animate({opacity: "100"});
@@ -335,9 +292,9 @@ function initInfoBox(selection){
         $(this).find(".hover-box").hide(0);
     })
     
-    addTA(nameFieldId);
+    //addTA(nameFieldId);
     
-    return infoTable;
+    return newInfoBox;
 }
 
 searchEngine = null;
@@ -363,7 +320,7 @@ function initSearchEngine(){
 
 function addTA(searchbar){
     //adds typeahead to the searchbar of the cryptocurrency selector of a new infobox
-    $("#" + searchbar).typeahead({
+    $(searchbar).typeahead({
         hint: false,
         highlight: false,
         minLength: 1
