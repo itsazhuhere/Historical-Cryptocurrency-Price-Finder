@@ -58,17 +58,23 @@ class InfoBox{
     initHTML(){
         var infoBox = this;
         this.infoBoxHtml = $(infoBoxTemplate).clone();
+        var table = $(this.infoBoxHtml).find("table");
         
-        this.nameNode = $(this.infoBoxHtml).find("table").find("#name-row").find("td").find("input");
+        this.closeNode = table.find("#close-row").find("td").find("a");
+        this.closeNode.click(function(){
+            $(infoBox.infoBoxHtml).hide(0);
+        });
+        
+        this.nameNode = table.find("#name-row").find("td").find("input");
         this.addTA(this.nameNode);
         
-        this.dateNode = $(this.infoBoxHtml).find("table").find("#date-row").find("td").find("span");
+        this.dateNode = table.find("#date-row").find("td").find("span");
         this.setDate(this.date);
         $(this.dateNode).on("blur", function(){
             infoBox.checkFields();
         });
         
-        this.priceNode = $(this.infoBoxHtml).find("table").find("#price-row").find("td").find("span");
+        this.priceNode = table.find("#price-row").find("td").find("span");
         
         
         $(this.hoverParent).append(this.infoBoxHtml);

@@ -11,19 +11,9 @@
     
     font: Verdana, Geneva, sans-serif;
     font-size: 15pt;
-    padding: 10px;
     
 }
 
-.tooltipster-content{
-    padding: 10px;
-}
-
-.tooltipster-box{
-    min-height: 100px;
-    min-width: 310px;
-    padding: 10px;
-}
 .hover-text{
     position: relative;
     display: inline-block;
