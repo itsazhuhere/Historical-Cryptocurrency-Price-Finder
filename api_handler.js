@@ -20,7 +20,7 @@ chrome.runtime.onMessage.addListener(
                 sendResponse(rawFile.response);
             }
             else{
-                sendResponse("Error: Status Error");
+                sendResponse("Error: " + rawFile.status);
             }
         }
     

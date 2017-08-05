@@ -1,5 +1,7 @@
 var ctrlDown = false;
 var ctrlCode = 17;
+var enterCode = 13;
+var nameErrorCode = 404;
 var defaultCurrency = "ethereum";
 var currencyRegex = /(\d+)(\.\d+)?/;
 
@@ -25,10 +27,10 @@ function loadHTMLTemplate(filepath){
             else{
                 reject("Invalid document");
             }
-        }
+        };
         request.onerror = function(){
-            reject("Error: Network Error");
-        }
+            reject("Invalid document");
+        };
         request.send(null);
         
     });
@@ -48,6 +50,7 @@ class InfoBox{
         this.date = date;
         this.slug = "";
         this.price = "";
+        this.topResult = "";
         
         this.infoBoxHtml = null;
         
@@ -60,21 +63,32 @@ class InfoBox{
         this.infoBoxHtml = $(infoBoxTemplate).clone();
         var table = $(this.infoBoxHtml).find("table");
         
-        this.closeNode = table.find("#close-row").find("td").find("a");
+        this.closeNode = table.find(".close-row").find("td").find("a");
         this.closeNode.click(function(){
             $(infoBox.infoBoxHtml).hide(0);
         });
         
-        this.nameNode = table.find("#name-row").find("td").find("input");
+        this.nameNode = table.find(".name-row").find("td").find("input");
         this.addTA(this.nameNode);
-        
-        this.dateNode = table.find("#date-row").find("td").find("span");
-        this.setDate(this.date);
-        $(this.dateNode).on("blur", function(){
-            infoBox.checkFields();
+        $(this.nameNode)
+            .on("change", function(e){
+            infoBox.checkFields(infoBox);
+        })
+            .on("keydown", function(e){
+            if(event.keyCode == enterCode){
+                infoBox.slug = $(this).val();
+                console.log(infoBox.slug);
+                $(this).trigger("blur");
+            }
         });
         
-        this.priceNode = table.find("#price-row").find("td").find("span");
+        this.dateNode = table.find(".date-row").find("td").find("span");
+        this.setDate(true, this.date);
+        $(this.dateNode).on("change", function(e){
+            infoBox.checkFields(infoBox);
+        });
+        
+        this.priceNode = table.find(".price-row").find("td").find("span");
         
         
         $(this.hoverParent).append(this.infoBoxHtml);
@@ -98,7 +112,7 @@ class InfoBox{
         }).on("typeahead:select", function(e, datum){
             //checking if target can be used directly
             infoBox.slug = datum.slug;
-            infoBox.checkFields();
+            infoBox.checkFields(infoBox);
         }).on("typeahead:open", function(e){
             //determine if menu will overflow
             //the max potential height of the display dropwdown in pixels
@@ -107,12 +121,26 @@ class InfoBox{
         });
     }
     
-    setDate(newDate){
-        $(this.dateNode).html(newDate);
+    setDate(valid, newDate){
+        newDate = newDate || "";
+        var row = $(this.dateNode).parents(".date-row");
+        if(valid){
+            $(this.dateNode).html(newDate);
+            row.toggleClass("valid-entry", true).toggleClass("invalid-entry", false);
+        }
+        else{
+            row.toggleClass("valid-entry", false).toggleClass("invalid-entry", true);
+        }
     }
     
-    checkFields(){
-        var infoBox = this;
+    setNameValidity(valid){
+        var row = $(this.nameNode).parents(".name-row");
+        row.toggleClass("valid-entry", valid).toggleClass("invalid-entry", !valid);
+    }
+    
+    checkFields(context){
+        console.log("checkFields");
+        var infoBox = context;
         //checking date field
         var dateInput = Date.parse($(this.dateNode).html());
         if(isNaN(dateInput)){
@@ -131,16 +159,29 @@ class InfoBox{
         
         var pricePromise = priceQuery(this.slug, timeInput);
         pricePromise.then(JSON.parse, function(error){
-        //TODO: implement error response
+            //TODO: implement error response
+            //This function will be called on network errors or invalid crypto name errors
             console.log(error);
+            if(error == nameErrorCode){
+                infoBox.setNameValidity(false);
+            }
+            else{
+                //some kind of "something went wrong" message
+            }
         })
         .then(function(response){
             if(response == null){
                 return;
             }
+            infoBox.setNameValidity(true);
+            
             var section = "price_usd";
             var dataPairs = response[section];
             var pairsLength = dataPairs.length;
+            if(pairsLength === 0){
+                infoBox.setDate(false);
+                return;
+            }
             var lastPair = dataPairs[pairsLength - 1];
     
             var dateString = toDate(lastPair[0]);
@@ -156,12 +197,21 @@ class InfoBox{
 function priceQuery(currency, time){
     return new Promise(function(resolve, reject){
         chrome.runtime.sendMessage({"currency": currency, "time": time}, function(result){
-            if(result.substr(0,6) != "Error:"){
-                console.log(result);
+            console.log(result);
+            if(result && result.substr(0,6) != "Error:"){
                 resolve(result);
             }
             else{
-                reject(result);
+                var errorNo = 0;
+                if(result){
+                    if(result.substr(7) == "Network Error"){
+                        errorNo = 503;
+                    }
+                    else{
+                        errorNo = Number(result.substr(7, 3));
+                    }
+                }
+                reject(errorNo);
             }
         });
     }); 
