@@ -6,6 +6,10 @@
 
 	"description" : "",
 	
+	"permissions": [
+		"contextMenus"
+	],
+	
 	"content_scripts": [
 		{
 			"matches": ["<all_urls>"],

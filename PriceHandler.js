@@ -1,6 +1,7 @@
 var ctrlDown = false;
 var ctrlCode = 17;
 var enterCode = 13;
+var escCode = 27;
 var nameErrorCode = 404;
 var defaultCurrency = "ethereum";
 var currencyRegex = /(\d+)(\.\d+)?/;
@@ -10,6 +11,14 @@ var maxResults = 6;
 var htmlLoaded = false;
 var htmlFile = chrome.extension.getURL("hoverbox.html");
 var infoBoxTemplate = null;
+
+var tooltips = [];
+
+var nameErrorMessage = "Invalid cryptocurrency name";
+var dateErrorMessage = "Invalid date";
+var networkErrorMessage = "Network error: check connection";
+
+var contextMenuTitle = "Search for price";
 
 //add event listener first
 
@@ -90,6 +99,8 @@ class InfoBox{
         
         this.priceNode = table.find(".price-row").find("td").find("span");
         
+        this.statusNode = table.find(".status-bar").find("td");
+        
         
         $(this.hoverParent).append(this.infoBoxHtml);
         
@@ -145,7 +156,7 @@ class InfoBox{
         var dateInput = Date.parse($(this.dateNode).html());
         if(isNaN(dateInput)){
             //do some error handling/css changing
-            
+            this.displayError(dateErrorMessage);
             return;
         }
         
@@ -164,6 +175,8 @@ class InfoBox{
             console.log(error);
             if(error == nameErrorCode){
                 infoBox.setNameValidity(false);
+                this.displayError(nameErrorMessage);
+                
             }
             else{
                 //some kind of "something went wrong" message
@@ -190,6 +203,11 @@ class InfoBox{
             $(infoBox.dateNode).html(dateString);
             $(infoBox.priceNode).html(price);
         });
+    }
+    
+    displayError(error){
+        
+        this.statusNode.html(error);
     }
     
 }
@@ -224,45 +242,50 @@ function toDate(milliseconds){
 
 currentSelection = null;
 
-function checkHighlighted(event){
-    if(!ctrlDown){
-        return;
-    }
+function checkHighlighted(info, tab){
     var selection = "";
     if (window.getSelection) {
         selection = window.getSelection();
     } 
     
     if(!selection){
-        //clear the old selection
-        if(currentSelection !== null){
-            
-        }
         return;
     }
     
-    var date = determineDate(selection.toString());
+    var date = determineDate(selection);
     
     if(date != ""){
         var infoBox = initInfoBox(selection, date);
         //setDate(infoBox, date);
     }
     
-    selection.empty();
-    ctrlDown = false;
-    
 }
 
 var numbersDateRE = /\d{1,2}[./-\s]+\d{1,2}[./-\s]+\d{2,4}/;
-var alphaDateRe = /(Jan(uary)?|Feb(ruary)?|Mar(ch)?|Apr(il)?|May|Jun(e)?|Jul(y)?|Aug(ust)?|Sep(tember)?|Oct(ober)?|Nov(ember)?|Dec(ember)?)\s+\d{1,2},\s+\d{4}/i;
+var alphaDateRe = /(Jan(uary)?|Feb(ruary)?|Mar(ch)?|Apr(il)?|May|Jun(e)?|Jul(y)?|Aug(ust)?|Sep(tember)?|Oct(ober)?|Nov(ember)?|Dec(ember)?)\s+\d{1,2},?[\s\S]+?\d{4}/i;
 var timeRE = /\d{1,2}:\d{2}(:\d{2})?\s*([ap]m)?\s*(\w{3})?([+-]\d{4})?/i;
 
 function determineDate(selection){
+    //simple version: check if the anchor node or any parent node of it is a timestamp then use its title if it is
+    var currentNode = selection.anchorNode;
+    var selectionText = "";
+    while(currentNode){
+        if (currentNode.nodeName == "TIME"){
+            selectionText = $(currentNode).attr("datetime");
+            break;
+        }
+        currentNode = currentNode.parentNode;
+    }
+    if(selectionText == ""){
+        selectionText = selection.toString();
+    }
+    
+    
     var dateStr = "";
     
-    var dates = numbersDateRE.exec(selection);
+    var dates = numbersDateRE.exec(selectionText);
     if(dates === null){
-        dates = alphaDateRe.exec(selection);
+        dates = alphaDateRe.exec(selectionText);
         if(dates === null){
             //selection has no properly formatted dates to use
             return dateStr;
@@ -272,7 +295,7 @@ function determineDate(selection){
     dateStr = dates[0];
 
     
-    var times = timeRE.exec(selection);
+    var times = timeRE.exec(selectionText);
     if(times === null){
         //no time included, allow it to default
         //possibly use CMC's day by day price in the future
@@ -312,7 +335,7 @@ function initInfoBox(selection, date){
     $(surroundNode).on("close-hover", function(event){
         $(this).find(".hover-box").hide(0);
     });
-    
+    tooltips.push(surroundNode);
     return newInfoBox;
 }
 
@@ -334,6 +357,13 @@ function initSearchEngine(){
     });
     searchEngine = engine;
     searchEngine.initialize();
+}
+
+function initContextMenu(){
+    chrome.contextMenus.create({title:contextMenuTitle, 
+                                type:"normal", 
+                                onclick:checkHighlighted,
+                                contexts:["selection"],function(){});
 }
 
 function adjustOrientation(maxHeight, baseElement, toAdjust){
@@ -372,10 +402,15 @@ function detectCtrlKeydown(event){
 }
 
 function detectCtrlKeyup(event){
+    //also detects esc key being pressed
     if (event.keyCode == ctrlCode) {
         ctrlDown = false;
     }
+    else if (event.keyCode == escCode){
+        $(".hover-text").trigger("close-hover");
+    }
 }
+
 $(document).ready(function(){
     
     document.addEventListener("mouseup",checkHighlighted);

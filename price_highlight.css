@@ -1,3 +1,8 @@
+.hover-box-wrapper{
+    position: absolute;
+    visibility: hidden;
+}
+
 .hover-box{
     all: initial;
     display: block;
@@ -7,12 +12,16 @@
     border-color: black;
     border-width: 2px;
     border-style: solid;
-    z-index: 100;
+    z-index: 999999;
     background-color: antiquewhite;
     
     font-family: "HelveticaNeue-Light", "Helvetica Neue Light", "Helvetica Neue", Helvetica, Arial, "Lucida Grande", sans-serif;
     font-size: 15pt;
     
+}
+
+.hover-box-table{
+    position: relative;
 }
 
 .hover-text{
@@ -49,4 +58,8 @@
     width: 25px;
     height: 25px;
     
+}
+
+.status-bar{
+    font-size: 8pt;
 }
