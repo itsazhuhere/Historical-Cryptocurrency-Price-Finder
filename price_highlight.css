@@ -27,9 +27,8 @@
 .hover-text{
     position: relative;
     display: inline-block;
-    border-color: black;
-    border-width: 1px;
-    border-style: dashed;
+    background-color: black;
+    color: white;
 }
 
 .valid-entry{
