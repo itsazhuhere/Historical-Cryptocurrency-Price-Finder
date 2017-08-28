@@ -64,7 +64,9 @@ class InfoBox{
         this.infoBoxHtml = null;
         
         this.initHTML();
-        
+        if(this.infoBoxHtml){
+            this.addTTipster(this.infoBoxHtml);
+        }
     }
     
     initHTML(){
@@ -130,6 +132,18 @@ class InfoBox{
             var displayHeight = 500;
             adjustOrientation(displayHeight, this.parentElement, this.parentElement.lastChild);
         });
+    }
+    
+    addTTipster(htmlTemplate){
+        $(this.hoverParent).tooltipster({
+            interactive: true,
+            theme: "tooltipster-light",
+            //theme: ['tooltipster-noir', 'tooltipster-noir-customized'],
+            functionInit: function(instance, helper){
+                instance.content(htmlTemplate);
+            }
+        });
+        $(this.hoverParent).tooltipster("reposition");
     }
     
     setDate(valid, newDate){
@@ -242,22 +256,63 @@ function toDate(milliseconds){
 
 currentSelection = null;
 
-function checkHighlighted(info, tab){
+function ctrlCheck(event){
+    if(!event.ctrlKey){
+        return;
+    }
     var selection = "";
     if (window.getSelection) {
         selection = window.getSelection();
-    } 
+    }
     
-    if(!selection){
+    var info = {selection: null, node: null};
+    
+    if(selection == "" || !selection){
+        var clicked = event.target;
+        info.node = clicked;
+    }
+    else{
+        info.selection = selection;
+    }
+    
+    checkHighlighted(info);
+}
+
+function contextMenuCheck(info, tab){
+    var selection = "";
+    if (window.getSelection) {
+        selection = window.getSelection();
+    }
+    
+    if(selection == "" || !selection){
         return;
     }
+    info.selection = selection;
     
-    var date = determineDate(selection);
+    checkHighlighted(info);
+}
+
+
+function checkHighlighted(info){
+    var selection = info.selection;
+    var node = info.node;
+    
+    var selectionInfo = {};
+    if(selection != null){
+        selectionInfo = determineDate(selection);
+    }
+    else{
+        //using node
+        selectionInfo = determineDate(node);
+    }
+    
+    var date = selectionInfo.selectString;
     
     if(date != ""){
-        var infoBox = initInfoBox(selection, date);
+        var infoBox = initInfoBox(selectionInfo.range, date);
         //setDate(infoBox, date);
-    }
+    }   
+    
     
 }
 
@@ -265,52 +320,91 @@ var numbersDateRE = /\d{1,2}[./-\s]+\d{1,2}[./-\s]+\d{2,4}/;
 var alphaDateRe = /(Jan(uary)?|Feb(ruary)?|Mar(ch)?|Apr(il)?|May|Jun(e)?|Jul(y)?|Aug(ust)?|Sep(tember)?|Oct(ober)?|Nov(ember)?|Dec(ember)?)\s+\d{1,2},?[\s\S]+?\d{4}/i;
 var timeRE = /\d{1,2}:\d{2}(:\d{2})?\s*([ap]m)?\s*(\w{3})?([+-]\d{4})?/i;
 
-function determineDate(selection){
+function determineDate(selectedNode){
     //simple version: check if the anchor node or any parent node of it is a timestamp then use its title if it is
-    var currentNode = selection.anchorNode;
+    var currentNode = null;
     var selectionText = "";
-    while(currentNode){
+    if(selectedNode.getRangeAt){
+        var range = selectedNode.getRangeAt(0);
+        currentNode = range.commonAncestorContainer;
+        selectionText = range.toString();
+    }
+    else{
+        currentNode = selectedNode;
+    }
+    var range = document.createRange();
+    var selectionInfo = {selectString: "", range: range};
+    
+    if(selectionText != ""){
+        var dateStr = "";
+    
+        var dates = numbersDateRE.exec(selectionText);
+        if(dates === null){
+            dates = alphaDateRe.exec(selectionText);
+            
+        }
+        if(dates !== null){
+            dateStr = dates[0];
+
+    
+            var times = timeRE.exec(selectionText);
+            if(times === null){
+                //no time included, allow it to default
+                //possibly use CMC's day by day price in the future
+            }
+            else{
+                dateStr = dateStr + " " + times[0];
+            }
+            selectionInfo.selectString = dateStr;
+            selectionInfo.range = selectedNode.getRangeAt(0);
+            return selectionInfo;
+        }
+    }
+    //Either no selected text or selected text doesn't have proper formatting
+    //Find a node that is usable
+    
+    var children = Array.from(currentNode.childNodes);
+    
+    //check children first, then if none are usable check parents
+    //TODO: implement limits to the number of parents and childs to check
+    while(children.length > 0){
+        var currChild = children.pop();
+        if(currChild.childNodes){
+            var toAdd = Array.from(currChild.childNodes);
+            for(var i =0; i< toAdd.length; i++){
+                children.push(toAdd[i]);
+            }
+        }
+        if (currChild.nodeName == "TIME"){
+            selectionInfo.selectString = $(currChild).attr("datetime");
+            
+            range.selectNode(currChild);
+            selectionInfo.range = range;
+            return selectionInfo;
+        }
+        
+    }
+    
+    while(currentNode != null){
         if (currentNode.nodeName == "TIME"){
-            selectionText = $(currentNode).attr("datetime");
-            break;
+            selectionInfo.selectString = $(currentNode).attr("datetime");
+            range.selectNode(currentNode);
+            selectionInfo.range = range;
+            //break;
+            return selectionInfo;
         }
         currentNode = currentNode.parentNode;
     }
-    if(selectionText == ""){
-        selectionText = selection.toString();
-    }
     
-    
-    var dateStr = "";
-    
-    var dates = numbersDateRE.exec(selectionText);
-    if(dates === null){
-        dates = alphaDateRe.exec(selectionText);
-        if(dates === null){
-            //selection has no properly formatted dates to use
-            return dateStr;
-        }
-    }
-    
-    dateStr = dates[0];
-
-    
-    var times = timeRE.exec(selectionText);
-    if(times === null){
-        //no time included, allow it to default
-        //possibly use CMC's day by day price in the future
-    }
-    else{
-        dateStr = dateStr + " " + times[0];
-    }
-    
-    return dateStr;
+    return selectionInfo;
 }
 
-function initInfoBox(selection, date){
-        
-    currentSelection = selection;
-    var range = currentSelection.getRangeAt(0);
+function toCollapsedArray(nodeList){
+    var array = [];
+    
+}
+
+function initInfoBox(range, date){
         
     var surroundNode = document.createElement("span");
     surroundNode.setAttribute("class", "hover-text");
@@ -342,6 +436,10 @@ function initInfoBox(selection, date){
 searchEngine = null;
 
 function initSearchEngine(){
+    //good place to put this; not part of search engine initialization
+    $().tooltipster();
+    
+    
     var engine = new Bloodhound({
         name: "currencies",
         prefetch: {
@@ -363,7 +461,8 @@ function initContextMenu(){
     chrome.contextMenus.create({title:contextMenuTitle, 
                                 type:"normal", 
                                 onclick:checkHighlighted,
-                                contexts:["selection"],function(){});
+                                contexts:["selection"],function(){}
+                               });
 }
 
 function adjustOrientation(maxHeight, baseElement, toAdjust){
@@ -407,13 +506,13 @@ function detectCtrlKeyup(event){
         ctrlDown = false;
     }
     else if (event.keyCode == escCode){
-        $(".hover-text").trigger("close-hover");
+        $(".hover-text").trigger("close-hover").tooltipster("close");
     }
 }
 
 $(document).ready(function(){
     
-    document.addEventListener("mouseup",checkHighlighted);
+    document.addEventListener("mouseup",ctrlCheck);
     window.addEventListener("keydown", detectCtrlKeydown, false);
     window.addEventListener("keyup", detectCtrlKeyup, false);
 

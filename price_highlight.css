@@ -1,23 +1,23 @@
-.hover-box-wrapper{
-    position: absolute;
-    visibility: hidden;
+.tooltipster-content{
+    min-width: 297px;
+    min-height: 117px;
 }
 
 .hover-box{
     all: initial;
     display: block;
-    position: absolute;
-    min-width: 250px;
-    min-height: 100px;
-    border-color: black;
-    border-width: 2px;
-    border-style: solid;
+    position: relative;
+    min-width: 269px;
+    min-height: 105px;
     z-index: 999999;
-    background-color: antiquewhite;
     
     font-family: "HelveticaNeue-Light", "Helvetica Neue Light", "Helvetica Neue", Helvetica, Arial, "Lucida Grande", sans-serif;
-    font-size: 15pt;
+    font-size: 13pt;
     
+}
+
+.tooltipster-sidetip.tooltipster-noir.tooltipster-noir-customized .tooltipster-box {
+	background: lightgray;
 }
 
 .hover-box-table{
