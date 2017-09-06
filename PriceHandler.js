@@ -62,6 +62,8 @@ class InfoBox{
         this.topResult = "";
         
         this.infoBoxHtml = null;
+        this.ttInstance = null;
+        this.stop = null;
         
         this.initHTML();
         if(this.infoBoxHtml){
@@ -75,9 +77,6 @@ class InfoBox{
         var table = $(this.infoBoxHtml).find("table");
         
         this.closeNode = table.find(".close-row").find("td").find("a");
-        this.closeNode.click(function(){
-            $(infoBox.infoBoxHtml).hide(0);
-        });
         
         this.nameNode = table.find(".name-row").find("td").find("input");
         this.addTA(this.nameNode);
@@ -86,7 +85,7 @@ class InfoBox{
             infoBox.checkFields(infoBox);
         })
             .on("keydown", function(e){
-            if(event.keyCode == enterCode){
+            if(e.keyCode == enterCode){
                 infoBox.slug = $(this).val();
                 console.log(infoBox.slug);
                 $(this).trigger("blur");
@@ -97,6 +96,11 @@ class InfoBox{
         this.setDate(true, this.date);
         $(this.dateNode).on("change", function(e){
             infoBox.checkFields(infoBox);
+        })
+            .on("keydown", function(e){
+            if(e.keyCode == enterCode){
+                $(this).trigger("blur");
+            }
         });
         
         this.priceNode = table.find(".price-row").find("td").find("span");
@@ -135,15 +139,29 @@ class InfoBox{
     }
     
     addTTipster(htmlTemplate){
+        var infoBox = this;
+        
         $(this.hoverParent).tooltipster({
             interactive: true,
             theme: "tooltipster-light",
             //theme: ['tooltipster-noir', 'tooltipster-noir-customized'],
             functionInit: function(instance, helper){
                 instance.content(htmlTemplate);
+            },
+            trigger: "custom",
+            triggerOpen: {
+                mouseenter: true
+            },
+            triggerClose: {
+                click: true
             }
         });
+        this.ttinstance = $(this.hoverParent).tooltipster("instance");
         $(this.hoverParent).tooltipster("reposition");
+        
+        this.closeNode.click(function(){
+            $(infoBox.hoverParent).tooltipster("close");
+        });
     }
     
     setDate(valid, newDate){
@@ -399,6 +417,35 @@ function determineDate(selectedNode){
     return selectionInfo;
 }
 
+function searchText(selection){
+    var selectionText = selection.getRangeAt(0).toString();
+    
+    var dateStr = "";
+    var selectionInfo = {selectString: "", range: range};
+    
+    var dates = numbersDateRE.exec(selectionText);
+    if(dates === null){
+        dates = alphaDateRe.exec(selectionText);
+        
+    }
+    if(dates !== null){
+        dateStr = dates[0];
+    
+        var times = timeRE.exec(selectionText);
+        if(times === null){
+            //no time included, allow it to default
+            //possibly use CMC's day by day price in the future
+        }
+        else{
+            dateStr = dateStr + " " + times[0];
+        }
+        selectionInfo.selectString = dateStr;
+        selectionInfo.range = selectedNode.getRangeAt(0);
+        
+        return selectionInfo;
+    }
+}
+
 function toCollapsedArray(nodeList){
     var array = [];
     
@@ -515,6 +562,6 @@ $(document).ready(function(){
     document.addEventListener("mouseup",ctrlCheck);
     window.addEventListener("keydown", detectCtrlKeydown, false);
     window.addEventListener("keyup", detectCtrlKeyup, false);
-
+    $().tooltipster();
     initSearchEngine();
 });
