@@ -107,9 +107,6 @@ class InfoBox{
         
         this.statusNode = table.find(".status-bar").find("td");
         
-        
-        $(this.hoverParent).append(this.infoBoxHtml);
-        
     }
     
     addTA(searchbar){
@@ -493,8 +490,10 @@ function initContextMenu(){
     chrome.contextMenus.create({title:contextMenuTitle, 
                                 type:"normal", 
                                 onclick:checkHighlighted,
-                                contexts:["selection"],function(){}
-                               });
+                                contexts:["selection"]},
+                                function(){}
+                                );
+    
 }
 
 function adjustOrientation(maxHeight, baseElement, toAdjust){
@@ -549,4 +548,5 @@ $(document).ready(function(){
     window.addEventListener("keyup", detectCtrlKeyup, false);
     $().tooltipster();
     initSearchEngine();
+    initContextMenu();
 });
