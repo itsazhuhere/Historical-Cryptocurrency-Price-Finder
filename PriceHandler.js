@@ -460,22 +460,7 @@ function initInfoBox(range, date){
     
     //create info box html content
     var newInfoBox = new InfoBox(surroundNode, date);
-
-    $(surroundNode).hover(function(e){
-        
-        $(this).find(".hover-box").stop(true, true).animate({opacity: "100"});
-        adjustOrientation(400, this, $(this).find(".hover-box"));
-        $(this).find(".hover-box").show(0);
-        
-    },function(e){
-        $(this).find(".hover-box").stop().animate({opacity: "100"});
-        $(this).find(".hover-box").delay(500).fadeOut(1500);
-    }
-    );
     
-    $(surroundNode).on("close-hover", function(event){
-        $(this).find(".hover-box").hide(0);
-    });
     tooltips.push(surroundNode);
     return newInfoBox;
 }
@@ -553,7 +538,7 @@ function detectCtrlKeyup(event){
         ctrlDown = false;
     }
     else if (event.keyCode == escCode){
-        $(".hover-text").trigger("close-hover").tooltipster("close");
+        $(".hover-text").tooltipster("close");
     }
 }
 
