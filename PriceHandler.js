@@ -135,8 +135,18 @@ class InfoBox{
         
         this.statusNode = table.find(".status-bar").find("td");
         
-        this.saveButton = this.infoBoxHtml.find("#save-default");
-        this.saveButton.click(this.saveCurrency);
+        this.saveButton = this.infoBoxHtml.find(".save-default");
+        this.saveButton.click(function(event){
+            console.log("saving");
+            var currency = "";
+            if(infoBox.slug != ""){
+                currency = infoBox.slug;
+            }
+            else{
+                currency = infoBox.currency;
+            }
+            setDefault(currency);
+        });
     }
     
     addTA(searchbar){
