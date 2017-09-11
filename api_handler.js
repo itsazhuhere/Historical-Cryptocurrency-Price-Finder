@@ -30,3 +30,19 @@ chrome.runtime.onMessage.addListener(
         rawFile.send(null);
         return true;
     });
+
+var contextMenuTitle = "Price on date: '%s'";
+
+function contextMenuCheck(info, tab){
+    
+    chrome.tabs.query({active: true, currentWindow: true}, function(tabs){
+        chrome.tabs.sendMessage(tab.id, {}, function(response){});
+    });
+}
+
+chrome.contextMenus.create({title:contextMenuTitle, 
+                                type:"normal", 
+                                onclick:contextMenuCheck,
+                                contexts:["selection"]},
+                                function(){}
+                                );

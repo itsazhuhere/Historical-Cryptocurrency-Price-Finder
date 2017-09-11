@@ -29,7 +29,12 @@
 	"web_accessible_resources": [
 		"close.png",
 		"hoverbox.html"
-	]
+	],
+	
+	"options_ui": {
+		"page": "options.html",
+		"chrome_style": true
+	}
 	
 	
 }

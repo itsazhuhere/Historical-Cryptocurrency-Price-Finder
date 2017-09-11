@@ -3,8 +3,9 @@ var ctrlCode = 17;
 var enterCode = 13;
 var escCode = 27;
 var nameErrorCode = 404;
-var defaultCurrency = "ethereum";
+var defaultCurrency = "";
 var currencyRegex = /(\d+)(\.\d+)?/;
+
 
 var maxResults = 6;
 
@@ -18,7 +19,7 @@ var nameErrorMessage = "Invalid cryptocurrency name";
 var dateErrorMessage = "Invalid date";
 var networkErrorMessage = "Network error: check connection";
 
-var contextMenuTitle = "Search for price";
+var contextMenuTitle = "Price on date: '%s'";
 
 //add event listener first
 
@@ -53,13 +54,33 @@ function loadHTMLTemplate(filepath){
     });
 }
 
+
+function setDefault(newDefault){
+    chrome.storage.sync.set({
+        currency: newDefault
+    }, function(){
+        //For notifying the user of the saved status
+    });
+    defaultCurrency = newDefault;
+}
+
+function loadDefault(){
+    chrome.storage.sync.get({
+        currency: ""
+    }, function(items){
+        defaultCurrency = items.currency;
+    });
+}
+
+
 class InfoBox{
-    constructor(parentSpan, date){
+    constructor(parentSpan, date, currency){
         this.hoverParent = parentSpan;
         this.date = date;
         this.slug = "";
         this.price = "";
         this.topResult = "";
+        this.currency = currency;
         
         this.infoBoxHtml = null;
         this.ttInstance = null;
@@ -69,6 +90,8 @@ class InfoBox{
         if(this.infoBoxHtml){
             this.addTTipster(this.infoBoxHtml);
         }
+        
+        this.checkFields(this);
     }
     
     initHTML(){
@@ -92,6 +115,11 @@ class InfoBox{
             }
         });
         
+        if(this.currency != ""){
+            this.nameNode.val(this.currency);
+            this.slug = this.currency;
+        }
+        
         this.dateNode = table.find(".date-row").find("td").find("span");
         this.setDate(true, this.date);
         $(this.dateNode).on("change", function(e){
@@ -107,6 +135,8 @@ class InfoBox{
         
         this.statusNode = table.find(".status-bar").find("td");
         
+        this.saveButton = this.infoBoxHtml.find("#save-default");
+        this.saveButton.click(this.saveCurrency);
     }
     
     addTA(searchbar){
@@ -204,7 +234,7 @@ class InfoBox{
             console.log(error);
             if(error == nameErrorCode){
                 infoBox.setNameValidity(false);
-                this.displayError(nameErrorMessage);
+                infoBox.displayError(nameErrorMessage);
                 
             }
             else{
@@ -232,6 +262,17 @@ class InfoBox{
             $(infoBox.dateNode).html(dateString);
             $(infoBox.priceNode).html(price);
         });
+    }
+    
+    saveCurrency(event){
+        var currency = "";
+        if(this.slug != ""){
+            currency = this.slug;
+        }
+        else{
+            currency = this.currency;
+        }
+        setDefault(currency);
     }
     
     displayError(error){
@@ -293,7 +334,13 @@ function ctrlCheck(event){
     checkHighlighted(info);
 }
 
-function contextMenuCheck(info, tab){
+chrome.runtime.onMessage.addListener(function(request, sender, sendResponse){
+    //only care about sender
+    contextMenuCheck();
+});
+
+function contextMenuCheck(){
+    //run this function on receiving chrome message
     var selection = "";
     if (window.getSelection) {
         selection = window.getSelection();
@@ -302,6 +349,7 @@ function contextMenuCheck(info, tab){
     if(selection == "" || !selection){
         return;
     }
+    var info = {selection: null, node: null};
     info.selection = selection;
     
     checkHighlighted(info);
@@ -309,6 +357,8 @@ function contextMenuCheck(info, tab){
 
 
 function checkHighlighted(info){
+    
+    
     var selection = info.selection;
     var node = info.node;
     
@@ -456,7 +506,7 @@ function initInfoBox(range, date){
     range.surroundContents(surroundNode);
     
     //create info box html content
-    var newInfoBox = new InfoBox(surroundNode, date);
+    var newInfoBox = new InfoBox(surroundNode, date, defaultCurrency);
     
     tooltips.push(surroundNode);
     return newInfoBox;
@@ -484,16 +534,6 @@ function initSearchEngine(){
     });
     searchEngine = engine;
     searchEngine.initialize();
-}
-
-function initContextMenu(){
-    chrome.contextMenus.create({title:contextMenuTitle, 
-                                type:"normal", 
-                                onclick:checkHighlighted,
-                                contexts:["selection"]},
-                                function(){}
-                                );
-    
 }
 
 function adjustOrientation(maxHeight, baseElement, toAdjust){
@@ -548,5 +588,4 @@ $(document).ready(function(){
     window.addEventListener("keyup", detectCtrlKeyup, false);
     $().tooltipster();
     initSearchEngine();
-    initContextMenu();
 });
